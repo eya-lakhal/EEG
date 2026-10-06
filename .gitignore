@@ -1,0 +1,17 @@
+# Données médicales (EEG d'enfants) : ne pas publier + fichiers trop gros pour GitHub (limite 100 Mo)
+*.mat
+data_csv/
+Annotations*.xlsx
+
+# Caches régénérables
+cache/
+__pycache__/
+*.pyc
+
+# Fichiers temporaires Word/Office et environnement
+~$*
+.claude/
+.venv/
+venv/
+.vscode/
+*.whl
