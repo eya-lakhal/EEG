@@ -1,0 +1,4 @@
+features (15): Std_mean, Min_max, Rel_Hz3_mean, Rel_Hz3_max, LineLength_mean, ZeroCross_mean, ZeroCross_max, Power_Hz3_mean, Max_max, DomFreq_mean, Variance_mean, LineLength_max, Rel_Beta_max, Power_Beta_mean, HjorthComplexity_max
+seuil=0.5, lissage=3, duree_min=2.0s, IoU_min=0.3
+RF min_samples_leaf=2, 200 arbres ; KNN k=31 + sous-echantillonnage x5 ; SVM RBF C=1 (probabilite Platt)
+fenetres=33206, patients=22, heures=9.22

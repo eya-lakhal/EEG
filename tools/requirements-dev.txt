@@ -1,0 +1,5 @@
+# Outils de développement (facultatifs, non nécessaires pour lancer l'application)
+reportlab      # génération du PDF (tools/make_pdf.py)
+pymupdf        # relecture du PDF
+playwright     # captures d'écran de l'interface (tools/shot.py) ; utilise Edge installé
+# make_doc.js : Node.js + npm install docx

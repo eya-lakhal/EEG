@@ -1,0 +1,15 @@
+# Thème de base (clair, palette "électrophysiologie") ; le détail typographique et les composants
+# sont dans ui/theme.py. Les couleurs ci-dessous sont les mêmes que ui/theme.py (une seule palette).
+[theme]
+base = "light"
+primaryColor = "#14505C"
+backgroundColor = "#F7F3EA"
+secondaryBackgroundColor = "#EDE7D8"
+textColor = "#222B32"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

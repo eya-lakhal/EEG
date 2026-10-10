@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from .data_loader import load_annotations, load_recording, list_recordings
+from .data_loader import CACHE, CSV_DIR, list_recordings, load_annotations, load_recording
 from .features import window_features
 from .preprocessing import (COMMON_EEG, bandpass, make_windows, robust_scale,
                             sample_labels, select_channels)
@@ -39,6 +39,18 @@ def build_dataset(win_s=2.0, overlap=0.5, pre_s=10.0, min_frac=0.5, progress=Non
         if progress:
             progress((i + 1) / len(recs), r)
     return pd.concat(parts, ignore_index=True)
+
+
+def load_or_build_dataset(win_s=2.0, overlap=0.5, pre_s=10.0, progress=None):
+    """Dataset avec cache disque. Le cache est reconstruit si les annotations ont changé depuis."""
+    f = CACHE / f"dataset_all19_w{win_s}_o{int(overlap * 100)}_p{int(pre_s)}.csv"
+    ann = CSV_DIR / "Annotations_MAJ.csv"
+    if f.exists() and f.stat().st_mtime >= ann.stat().st_mtime:
+        return pd.read_csv(f)
+    df = build_dataset(win_s, overlap, pre_s, progress=progress)
+    CACHE.mkdir(exist_ok=True)
+    df.to_csv(f, index=False)
+    return df
 
 
 META_COLS = ["rec_id", "t_start", "t_end", "frac_crise", "Class", "Class3"]

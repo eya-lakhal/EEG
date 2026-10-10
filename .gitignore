@@ -1,14 +1,12 @@
-# Données médicales (EEG d'enfants) : ne pas publier + fichiers trop gros pour GitHub (limite 100 Mo)
-*.mat
+# data_csv/ : 3,3 Go, fichiers jusqu'à 380 Mo (GitHub refuse > 100 Mo). Se régénère : python -m src.convert_to_csv
 data_csv/
-Annotations*.xlsx
 
-# Caches régénérables
+# Caches dérivés, régénérables automatiquement
 cache/
 __pycache__/
 *.pyc
 
-# Fichiers temporaires Word/Office et environnement
+# Fichiers temporaires Office / éditeur / environnement
 ~$*
 .claude/
 .venv/
