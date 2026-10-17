@@ -549,14 +549,19 @@ def page_classification():
         with st.spinner("Entraînement..."):
             res, cms, _, _ = evaluate_all(get_models(bal, rf_min_leaf=RF_LEAF, augment=aug), tr[feats], tr.Class, te[feats], te.Class,
                                           learn_thr=learn_thr, groups=tr.rec_id if split == "patient" else None)
-        st.session_state["cls"] = (res, cms, len(tr), len(te), int(te.Class.sum()), res.attrs["seuils"], int(tr.Class.sum()))
+        st.session_state["cls"] = (res, cms, len(tr), len(te), int(te.Class.sum()), res.attrs["seuils"], int(tr.Class.sum()), res.attrs["validation"])
     ui.section("Résultats sur l'ensemble de test")
     if "cls" in st.session_state:
-        res, cms, ntr, nte, npos, thrs, npos_tr = st.session_state["cls"]
+        res, cms, ntr, nte, npos, thrs, npos_tr, val = st.session_state["cls"]
         m_ = st.columns(2)
         m_[0].metric("Train", f"{ntr:,} fenêtres".replace(",", " "), f"dont {npos_tr:,} en crise ({100 * npos_tr / ntr:.1f} %)".replace(",", " "), delta_color="off")
         m_[1].metric("Test", f"{nte:,} fenêtres".replace(",", " "), f"dont {npos:,} en crise ({100 * npos / nte:.1f} %)".replace(",", " "), delta_color="off")
-        st.caption("Seuils de décision : " + ", ".join(f"{k} {v:.2f}" for k, v in thrs.items()))
+        if val:
+            st.caption(f"Seuil appris : le train est lui-même coupé en {val['n_fit']:,} fenêtres pour entraîner ({val['pos_fit']:,} en crise) et {val['n_val']:,} "
+                       f"pour choisir le seuil ({val['pos_val']:,} en crise) ; le test n'est pas utilisé pour ce choix. ".replace(",", " ")
+                       + "Seuils : " + ", ".join(f"{k} {v:.2f}" for k, v in thrs.items()))
+        else:
+            st.caption("Seuil de décision : 0,5 pour tous les modèles.")
         st.dataframe(res.style.format("{:.3f}").highlight_max(color=T.SAGE_LIGHT), use_container_width=True)
         cols = st.columns(4)
         for i, (nm, cm) in enumerate(cms.items()):

@@ -156,12 +156,13 @@ def _inner_split(y, groups, seed):
 def evaluate_all(models, Xtr, ytr, Xte, yte, learn_thr=False, groups=None, seed=42):
     """Entraîne et évalue chaque modèle. Avec `learn_thr`, le seuil de décision est appris sur 20 % du train (jamais sur le test)
     puis appliqué au test ; `res.attrs["seuils"]` contient le seuil de chaque modèle."""
-    rows, cms, preds, fitted, thrs = [], {}, {}, {}, {}
+    rows, cms, preds, fitted, thrs, split_info = [], {}, {}, {}, {}, None
     Xtr, ytr = np.asarray(Xtr), np.asarray(ytr)
     for name, m in models.items():
         thr = 0.5
         if learn_thr:
             iin, iva = _inner_split(ytr, None if groups is None else np.asarray(groups), seed)
+            split_info = dict(n_fit=len(iin), pos_fit=int((ytr[iin] != 0).sum()), n_val=len(iva), pos_val=int((ytr[iva] != 0).sum()))
             m.fit(Xtr[iin], ytr[iin])
             thr = learn_threshold(ytr[iva], m.predict_proba(Xtr[iva])[:, 1])
         else:
@@ -172,6 +173,7 @@ def evaluate_all(models, Xtr, ytr, Xte, yte, learn_thr=False, groups=None, seed=
         preds[name], fitted[name], thrs[name] = p, m, thr
     res = pd.DataFrame(rows).set_index("Modèle")
     res.attrs["seuils"] = thrs
+    res.attrs["validation"] = split_info      # None sans seuil appris
     return res, cms, preds, fitted
 
 
