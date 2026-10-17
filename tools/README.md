@@ -7,6 +7,7 @@ Ils lisent/écrivent des fichiers intermédiaires dans `cache/` (non versionné,
 |---|---|
 | `compare.py`, `metrics.py` | Comparaison des 4 modèles en leave-one-patient-out, métriques, intervalles de confiance (première version ; la référence actuelle est `python -m src.evaluate`) |
 | `experiments.py`, `analyse2.py`, `tuning.py` | Expériences complémentaires : normalisation des features par enregistrement (abandonnée), correction des bornes (abandonnée), réglages du Random Forest, KNN avec sous-échantillonnage (adopté) |
+| `prevention_study.py` | Étude de faisabilité de la prévention (pré-crise contre calme, un enregistrement laissé de côté) : `python -m tools.prevention_study` |
 | `inventory.py` | Inventaire des widgets de chaque page de l'interface (vérifier qu'aucune fonctionnalité n'est perdue lors d'une refonte) |
 | `ui_test.py`, `ui_test2.py` | Tests de comportement de l'interface (navigation, conservation des réglages, changement de patient, entraînement) |
 | `shot.py`, `shot_click.py`, `restart.sh` | Captures d'écran de l'interface avec le navigateur Edge (Playwright) ; `restart.sh` relance le serveur de développement |

@@ -1,7 +1,7 @@
 # Détection des crises d'absence à partir de signaux EEG
 
 Mini-projet Data Mining (3AINFO) : du signal EEG brut aux intervalles de crise (prétraitement, fenêtres, features,
-sélection, classification DT / RF / KNN / SVM, détection temporelle) avec une application Streamlit interactive.
+sélection, classification DT / RF / KNN / SVM, data augmentation des crises, détection temporelle, étude de faisabilité de la prévention) avec une application Streamlit interactive.
 
 ## Démarrage rapide
 
@@ -13,6 +13,10 @@ Premier lancement : la construction du dataset prend environ 1 minute, la premi�
 1 à 2 minutes (ensuite tout est en cache). Un lien direct est possible : `http://localhost:8501/?step=5&rec=210914B_A`.
 
 Évaluation de référence (environ 25 min, dont 18 pour le SVM) : `python -m src.evaluate` -> `results/`.
+Même évaluation avec data augmentation des crises : `python -m src.evaluate --augment` -> fichiers `results/*_augment.*`.
+Étude de la prévention (pré-crise contre calme) : `python -m tools.prevention_study` -> `results/prevention_*.csv`.
+
+Métrique principale affichée : **Balanced Accuracy** (moyenne du Recall des deux classes, 0,5 pour « jamais de crise »), avec Recall, Précision, F1 et PR-AUC.
 
 ## Données
 

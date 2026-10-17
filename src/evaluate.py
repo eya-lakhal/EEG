@@ -1,12 +1,13 @@
 """Évaluation de référence : source UNIQUE des chiffres de l'application et des documents.
 
-    python -m src.evaluate [--rf-leaf 2]
+    python -m src.evaluate [--rf-leaf 2] [--augment] [--from-scores]
 
 Fait, avec exactement les modèles de `src/models.py` :
   1. leave-one-recording-out pour les 4 modèles (15 meilleures features) ;
-  2. métriques sur les fenêtres (AUC, PR-AUC, Recall, Précision, F1) + intervalles de confiance bootstrap par patient ;
+  2. métriques sur les fenêtres (AUC, PR-AUC, Balanced Accuracy, Recall, Précision, F1) + intervalles de confiance bootstrap par patient ;
   3. détection temporelle avec appariement STRICT (IoU >= 0,3) et mesure large pour comparaison.
 Écrit dans results/ : loo_scores.csv, summary_models.csv, summary_detection.csv, run_info.txt
+(avec --augment : mêmes fichiers suffixés _augment, pour comparer avec/sans data augmentation des crises)
 """
 import argparse
 import sys
@@ -16,12 +17,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import average_precision_score, balanced_accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 
 from .data_loader import load_annotations
 from .dataset import feature_cols, load_or_build_dataset
 from .detection import compare_intervals, match_intervals, predictions_to_intervals
-from .models import MODEL_NAMES, loo_proba
+from .models import MODEL_NAMES, learn_threshold, loo_proba
 from .selection import rank_features, select_uncorrelated
 
 warnings.filterwarnings("ignore")
@@ -65,10 +66,17 @@ def model_table(ds, scores, n_boot=300, seed=0):
         p = (s > THR).astype(int)
         ap_b[n] = np.array([average_precision_score(y[b], s[b]) for b in boots])
         f1_b = np.array([f1_score(y[b], (s[b] > THR).astype(int)) for b in boots])
+        groups = ds.rec_id.to_numpy()                  # seuil appris sur les 21 AUTRES enregistrements (scores déjà calculés ; légèrement optimiste)
+        pl = np.zeros(len(y), int)
+        thr_l = {r: learn_threshold(y[groups != r], s[groups != r]) for r in ds.rec_id.unique()}
+        for r, t in thr_l.items():
+            pl[groups == r] = (s[groups == r] > t).astype(int)
         f1_pat = np.mean([f1_score(y[idx[r]], p[idx[r]]) for r in pat])
         rows.append({"Modèle": n, "AUC": roc_auc_score(y, s), "PR-AUC": average_precision_score(y, s),
                      "PR-AUC IC95 bas": np.percentile(ap_b[n], 2.5), "PR-AUC IC95 haut": np.percentile(ap_b[n], 97.5),
-                     "Recall": recall_score(y, p), "Précision": precision_score(y, p), "F1": f1_score(y, p),
+                     "Balanced Accuracy": balanced_accuracy_score(y, p),
+                     "F1 (seuil appris)": f1_score(y, pl), "Balanced Accuracy (seuil appris)": balanced_accuracy_score(y, pl),
+                     "Seuil appris (médian)": float(np.median(list(thr_l.values()))), "Recall": recall_score(y, p), "Précision": precision_score(y, p), "F1": f1_score(y, p),
                      "F1 IC95 bas": np.percentile(f1_b, 2.5), "F1 IC95 haut": np.percentile(f1_b, 97.5), "F1 moyen/patient": f1_pat})
     out = pd.DataFrame(rows).set_index("Modèle")
     best = out["PR-AUC"].idxmax()
@@ -79,24 +87,32 @@ def model_table(ds, scores, n_boot=300, seed=0):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--rf-leaf", type=int, default=2, help="min_samples_leaf du Random Forest")
+    ap.add_argument("--augment", action="store_true", help="data augmentation des crises à l'entraînement (fichiers suffixés _augment)")
+    ap.add_argument("--from-scores", action="store_true", help="recalcule les tableaux à partir de loo_scores*.csv, sans réentraîner")
     ap.add_argument("--models", nargs="*", default=MODEL_NAMES)
     args = ap.parse_args(argv)
     RESULTS.mkdir(exist_ok=True)
+    sfx = "_augment" if args.augment else ""
     ds = load_or_build_dataset()
     annots = load_annotations()
     F = [c for c in feature_cols(ds) if c != "Class3"]
     feats = select_uncorrelated(rank_features(ds, F), ds, 15, 0.9)
     print("features:", feats, flush=True)
     scores = pd.DataFrame(index=ds.index)
-    for name in args.models:
-        t = time.time()
-        scores[name] = loo_proba(ds, feats, name, rf_min_leaf=args.rf_leaf)
-        print(f"{name}: {time.time() - t:.0f} s", flush=True)
-    pd.concat([ds[["rec_id", "t_start"]], scores], axis=1).to_csv(RESULTS / "loo_scores.csv", index=False)
+    if args.from_scores:
+        old = pd.read_csv(RESULTS / f"loo_scores{sfx}.csv")
+        for name in args.models:
+            scores[name] = old[name].to_numpy()
+    else:
+        for name in args.models:
+            t = time.time()
+            scores[name] = loo_proba(ds, feats, name, rf_min_leaf=args.rf_leaf, augment=args.augment)
+            print(f"{name}: {time.time() - t:.0f} s", flush=True)
+    pd.concat([ds[["rec_id", "t_start"]], scores], axis=1).to_csv(RESULTS / f"loo_scores{sfx}.csv", index=False)
     mt, dt = model_table(ds, scores), detection_table(ds, scores, annots)
-    mt.round(4).to_csv(RESULTS / "summary_models.csv")
-    dt.round(4).to_csv(RESULTS / "summary_detection.csv")
-    (RESULTS / "run_info.txt").write_text(
+    mt.round(4).to_csv(RESULTS / f"summary_models{sfx}.csv")
+    dt.round(4).to_csv(RESULTS / f"summary_detection{sfx}.csv")
+    (RESULTS / f"run_info{sfx}.txt").write_text(
         f"features ({len(feats)}): {', '.join(feats)}\nseuil={THR}, lissage={SMOOTH}, duree_min={MIN_DUR}s, IoU_min={IOU_MIN}\n"
         f"RF min_samples_leaf={args.rf_leaf}, 200 arbres ; KNN k=31 + sous-echantillonnage x5 ; SVM RBF C=1 (probabilite Platt)\n"
         f"fenetres={len(ds)}, patients={ds.rec_id.nunique()}, heures={len(ds) / 3600:.2f}\n", encoding="utf-8")

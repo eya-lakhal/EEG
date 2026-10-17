@@ -1,0 +1,5 @@
+Modèle,TP,FN,FP,Crises retrouvées (strict),Précision événements,Fausses alarmes / h,Erreur début médiane (s),Erreur début moy. abs (s),Erreur fin médiane (s),Erreur fin moy. abs (s),Crises retrouvées (large),Fausses alarmes (large)
+Decision Tree,78,4,208,0.9512,0.2727,22.5501,-0.0,1.2564,1.0,2.359,1.0,200
+Random Forest,70,12,52,0.8537,0.5738,5.6375,-0.0,0.9429,1.0,1.6714,0.9146,39
+KNN,77,5,99,0.939,0.4375,10.733,-0.0,1.0779,1.0,1.7792,0.9878,89
+SVM,70,12,105,0.8537,0.4,11.3835,-0.0,1.2857,1.0,2.5,0.9268,92

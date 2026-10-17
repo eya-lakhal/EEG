@@ -1,5 +1,8 @@
 """Génère Guide_complet_interface_et_methodologie.pdf (reportlab)."""
 import re
+from pathlib import Path
+
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -277,6 +280,7 @@ H3("Les métriques : comment les lire")
 P("On compare la prédiction à la réalité. La **matrice de confusion** compte 4 cas : **TP** (crise détectée), **TN** (non-crise bien classée), **FP** (fausse alarme), **FN** (crise manquée).")
 TABLE(["Métrique", "Formule", "Question à laquelle elle répond"], [
     ["Accuracy", "(TP + TN) / total", "Quelle part de réponses justes ? **Trompeuse ici** : 96,5 % pour « jamais de crise »."],
+    ["**Balanced Accuracy**", "(Recall crise + Recall hors-crise) / 2", "Comme l'Accuracy mais chaque classe pèse autant : « jamais de crise » ne fait que **0,50**. **Remplace l'Accuracy** dans l'interface."],
     ["Précision", "TP / (TP + FP)", "Quand le modèle crie « crise », a-t-il raison ? (coût des fausses alarmes)"],
     ["**Recall**", "TP / (TP + FN)", "Quelle part des vraies crises est détectée ? **Priorité** : une crise manquée est le pire cas."],
     ["F1-score", "2 × P × R / (P + R)", "Compromis précision / recall (moyenne harmonique) ; empêche de gagner en criant « crise » partout"],
@@ -291,6 +295,23 @@ TABLE(["Modèle", "AUC", "PR-AUC [IC 95 %]", "Recall", "Précision", "F1 [IC 95 
     ["Decision Tree", "0,845", "0,500 [0,38-0,71]", "0,794", "0,327", "0,463 [0,40-0,62]", "0,533"],
 ], [3.6, 1.4, 3.2, 1.5, 1.8, 3.2, 2.3], True)
 P("Les intervalles de confiance à 95 % viennent d'un bootstrap sur les 19 patients avec crises (300 tirages). Tous les modèles sont évalués au **même seuil de 0,5** sur leur probabilité, avec **exactement** les réglages de `src/models.py` utilisés par l'application.")
+H3("Data augmentation, seuil appris et Balanced Accuracy")
+P("Deux améliorations de l'évaluation ont été ajoutées. (1) **Data augmentation des crises** (`Augmented` dans `src/models.py`) : pendant l'entraînement seulement, on crée 2 fois plus de fenêtres de crise synthétiques = fenêtre réelle + bruit gaussien (0,1 × l'écart-type de la feature sur les crises). Le test n'est jamais augmenté. (2) **Seuil appris** : au lieu de 0,5, le seuil de chaque modèle maximise le F1 sur 20 % du train (borné à [0,1 ; 0,9]) ; le test n'intervient jamais dans son choix. Raison : à 0,5 chaque modèle a un point de fonctionnement différent (le Decision Tree sur-estime les crises d'un facteur 2,5), donc une part des écarts entre modèles est un artefact du seuil.")
+_R = Path(__file__).resolve().parent.parent / "results"
+_a, _b = pd.read_csv(_R / "summary_models.csv", index_col=0), pd.read_csv(_R / "summary_models_augment.csv", index_col=0)
+_t = pd.read_csv(_R / "stratified_80_20.csv").set_index(["Augmentation", "Modèle", "Seuil"])
+_rows = []
+for _m in ["Decision Tree", "Random Forest", "KNN", "SVM"]:
+    _rows.append([_m, "%.2f" % _t.loc[("non", _m, "seuil 0,5"), "F1 moy"], "%.2f" % _t.loc[("oui", _m, "seuil appris"), "F1 moy"],
+                  "%.2f" % _t.loc[("non", _m, "seuil 0,5"), "Balanced Accuracy moy"], "%.2f" % _t.loc[("oui", _m, "seuil appris"), "Balanced Accuracy moy"],
+                  "%.2f" % _a.loc[_m, "F1"], "%.2f" % _b.loc[_m, "F1 (seuil appris)"],
+                  "%.2f" % _a.loc[_m, "Balanced Accuracy"], "%.2f" % _b.loc[_m, "Balanced Accuracy (seuil appris)"]])
+TABLE(["Modèle", "F1 strat. base", "F1 strat. augm. + seuil", "BalAcc strat. base", "BalAcc strat. augm. + seuil", "F1 patient base", "F1 patient augm. + seuil", "BalAcc patient base", "BalAcc patient augm. + seuil"],
+      _rows, [2.6, 1.7, 1.9, 1.7, 1.9, 1.7, 1.9, 1.7, 1.9], True)
+P("*Base = seuil 0,5, sans augmentation. « strat. » = split stratifié 80/20 du sujet (5 découpages, moyenne) ; « patient » = leave-one-patient-out (22 entraînements). Dans le cas « patient », le seuil appris vient des scores des 21 autres enregistrements : c'est légèrement optimiste.*")
+B("**Les quatre modèles se rapprochent** une fois évalués avec augmentation et seuil appris : l'écart entre le meilleur et le moins bon modèle diminue nettement par rapport au seuil 0,5.")
+B("**Le gain de la data augmentation est réel mais modeste, et en partie un effet de seuil** : l'augmentation aide surtout le SVM et le Decision Tree ; avec un seuil appris, un SVM sans augmentation rattrape l'essentiel de l'écart. Le Random Forest ne change pas.")
+B("**Le split stratifié donne des scores plus élevés que le par-patient** (fuite entre fenêtres voisines) : on présente les deux, le stratifié parce que le sujet le demande, le par-patient comme estimation réaliste.")
 H3("Verdict")
 B("Le **Decision Tree** est clairement le plus faible : le Random Forest le dépasse en PR-AUC dans 100 % des tirages bootstrap.")
 B("**Random Forest, KNN corrigé et SVM ne sont pas statistiquement distinguables** avec 19 patients : le RF dépasse le KNN dans 65 % des tirages et le SVM dans 90 %, mais les intervalles de confiance se chevauchent largement. Le Random Forest a la meilleure PR-AUC (0,59) et la meilleure précision.")
@@ -430,14 +451,14 @@ H3("3 · Meilleures features")
 B("**Ce qu'on voit** : un panneau (nombre de features retenues, seuil de corrélation maximal) ; les features retenues sous forme d'**étiquettes** ; le classement en deux onglets : **tableau complet** (avec barre de score et colonne « Retenue ») et **graphique des 20 premiers scores** (retenue / non retenue, même ordre que le tableau) ; puis 3 onglets de comportement : évolution dans le temps chez le patient, distribution par classe, corrélations.")
 B("**Comment** : `get_ranking` (4 critères, en cache) puis `select_uncorrelated`. La liste retenue est stockée dans `session_state[\"best_feats\"]`, ce qui alimente la page Prévention et l'état de l'analyse.")
 H3("4 · Classification")
-B("**Ce qu'on voit** : un panneau d'entraînement (features meilleures ou toutes, K, séparation par patient ou stratifiée, pondération des classes) et un bouton **Entraîner** ; les résultats (tableau Accuracy / Précision / Recall / F1 avec la meilleure valeur surlignée, 4 matrices de confusion) ; un encadré « Comment lire les métriques » ; puis le **tableau patient par patient** (TP, FN, FP, Recall, Précision, F1) pour un modèle et un seuil choisis.")
+B("**Ce qu'on voit** : un panneau d'entraînement (features meilleures ou toutes, K, séparation par patient ou stratifiée, pondération des classes) et un bouton **Entraîner** ; les résultats (tableau **Balanced Accuracy** / Précision / Recall / F1 avec la meilleure valeur surlignée, 4 matrices de confusion, cases « Data augmentation des crises » et « Seuil appris sur le train », tableau de référence stratifié contre par-patient) ; un encadré « Comment lire les métriques » ; puis le **tableau patient par patient** (TP, FN, FP, Recall, Précision, F1) pour un modèle et un seuil choisis.")
 B("**Pourquoi un bouton** : un entraînement prend de 10 secondes à plusieurs minutes ; sans bouton, il se lancerait à chaque clic sur un curseur. Les résultats sont gardés dans `session_state`. Avec « Pondérer les classes », le KNN voit 5 non-crises pour 1 crise (il n'a pas de pondération), k = 31.")
 H3("5 · Détection temporelle")
 B("**Ce qu'on voit** : un panneau de 6 réglages (K, modèle, seuil, lissage, durée minimale, recouvrement minimal IoU) ; le **bilan** (crises retrouvées / manquées, fausses alarmes, intervalles prédits, appariement strict) ; un graphique en **trois bandes** partageant l'axe du temps : (1) l'EEG d'un canal avec les zones pré-critiques et les crises annotées ; (2) deux couloirs séparés, **« Référence »** (annotations des experts) et **« Modèle »** (prédictions de l'algorithme) ; (3) la probabilité de crise avec le seuil ; un encadré **« À lire avant d'interpréter »** (une prédiction n'est pas un diagnostic ; une « fausse alarme » peut être une crise non annotée ; la phase post-critique n'est pas annotée) ; la précision des bornes et les tableaux d'intervalles.")
 B("**Comment** : `get_loo` fournit la probabilité ; `predictions_to_intervals` applique seuil, lissage, fusion, durée minimale ; `match_intervals` apparie strictement prédictions et crises. Le signal est sous-échantillonné (`sig[::4]`) **uniquement pour l'affichage**. La zone pré-critique est dérivée des annotations et du réglage « zone pré-crise » ; ce n'est pas une prédiction.")
 H3("6 · Prévention (préparation)")
-B("**Ce qu'on voit** : un encadré précisant que c'est une **étude préparatoire** sans modèle de prévention ; le nombre de fenêtres inter-critiques / pré-crise / crise ; un graphique qui **aligne toutes les crises sur leur début (t = 0)** et trace l'évolution moyenne des features choisies (plage réglable, par défaut −60 s à +20 s, ligne de base = 20 premières secondes).")
-B("**Pourquoi** : si une feature commence à monter **avant** t = 0, elle porte un signal précurseur exploitable. Je n'ai pas encore analysé ces courbes ni entraîné de modèle de prévention.")
+B("**Ce qu'on voit** : un encadré **Étude de faisabilité** et ses résultats (AUC et Balanced Accuracy de la pré-crise contre le calme, AUC selon le délai avant la crise) ; le nombre de fenêtres inter-critiques / pré-crise / crise ; un graphique qui **aligne toutes les crises sur leur début (t = 0)** et trace l'évolution moyenne des features choisies (plage réglable, par défaut −60 s à +20 s, ligne de base = 20 premières secondes).")
+B("**Pourquoi** : si une feature commence à monter **avant** t = 0, elle porte un signal précurseur exploitable. L'étude de faisabilité conclut à un signal faible : ce n'est pas un système de prévention.")
 
 H2("C.7 Les choix techniques et leurs raisons")
 TABLE(["Choix", "Alternative", "Pourquoi"], [
@@ -500,17 +521,19 @@ B("**« Patient » = enregistrement** : l'Excel suggère que 210427B_C et 210504
 B("**Hyperparamètres** : réglage exploratoire seulement (écarts non significatifs), pas de validation croisée imbriquée.")
 B("**Sélection des features sur tous les patients** (légère fuite, identique pour tous les modèles).")
 B("**Normalisation sur l'enregistrement entier**, non applicable telle quelle en temps réel ; **pas de traitement spécifique des artefacts**, ni des protocoles de provocation présents dans les enregistrements (hyperpnée « HPN », stimulation lumineuse « SLI ») : leur effet sur les fausses alarmes n'a pas été analysé.")
-B("**Taille de fenêtre non comparée** expérimentalement ; **pas de notebook** livré ; **prévention non réalisée** ; **pas de modèle sauvegardé**.")
+B("**Taille de fenêtre non comparée** expérimentalement ; **pas de notebook** livré ; **prévention : étude de faisabilité seulement (signal faible, voir ci-dessous)** ; **pas de modèle sauvegardé**.")
 B("**Choix d'annotations à confirmer** : dernière ligne conservée pour les doublons ; crise de 6 heures écartée.")
 H2("E.2 Améliorations possibles (à présenter comme perspectives)")
 B("Faire valider les étiquettes par un expert, puis relancer l'évaluation (`python -m src.evaluate`).")
 B("Régler les hyperparamètres par validation croisée **imbriquée** par patient ; tester un jeu de features **sans amplitude absolue** (cas 230718A_A).")
 B("Features **inter-canaux** (cohérence, synchronie : les absences sont généralisées) et de **contexte** (fenêtres voisines) ; réseau convolutif 1D sur le signal brut.")
 B("Sauvegarder un modèle final et permettre de déposer un nouveau fichier EEG dans l'interface.")
-B("**Prévention** : exploiter `Class3` et la page d'alignement sur le début de crise pour entraîner un modèle de pré-crise.")
+B("**Prévention** : l'étude de faisabilité (`python -m tools.prevention_study`) donne un signal faible (AUC ~0,64, Balanced Accuracy ~0,55, 17 patients sur 19 au-dessus du hasard). Pistes : plus de patients, suivi sur plusieurs fenêtres consécutives, modèles par patient, ECG.")
 H2("E.3 Questions difficiles et réponses solides")
 TABLE(["Question probable", "Réponse"], [
-    ["Pourquoi pas l'Accuracy ?", "Avec 96,5 % de fenêtres sans crise, un modèle qui répond toujours « pas de crise » a 96,5 % d'Accuracy et ne détecte rien. On suit le Recall (une crise manquée est le pire cas) contrôlé par le F1 et la PR-AUC."],
+    ["Pourquoi pas l'Accuracy ?", "Avec 96,5 % de fenêtres sans crise, un modèle qui répond toujours « pas de crise » a 96,5 % d'Accuracy et ne détecte rien. On affiche la **Balanced Accuracy** (0,50 pour ce modèle) et on suit le Recall (une crise manquée est le pire cas) contrôlé par le F1 et la PR-AUC."],
+    ["À quoi sert la data augmentation ?", "À montrer plus de crises au modèle pendant l'entraînement (copies bruitées des vraies crises, test jamais augmenté). Gain modeste, surtout pour le SVM et le Decision Tree, et en partie équivalent à un meilleur choix de seuil : je le présente comme une tendance, pas comme une preuve."],
+    ["Pourquoi un seuil appris plutôt que 0,5 ?", "Les probabilités des modèles ne sont pas calibrées de la même façon : à 0,5 chaque modèle est à un point de fonctionnement différent. Un seuil choisi sur une partie du train (jamais sur le test) compare les modèles à armes égales ; ils deviennent alors proches."],
     ["Pourquoi ces 4 modèles ?", "Ce sont ceux du sujet. Ils couvrent 4 familles : règles (arbre), ensemble d'arbres (forêt), proximité (KNN) et frontière à marge (SVM)."],
     ["Votre test est-il honnête ?", "On a deux protocoles : le split stratifié du sujet, optimiste (fuite entre fenêtres chevauchantes), et le leave-one-patient-out, réaliste. Le F1 passe de 0,76 à 0,59 pour le RF : on a mesuré la fuite. Et la détection est évaluée avec un appariement strict : la mesure large précédente était optimiste de 7 points."],
     ["Quel est le meilleur modèle ?", "Le Random Forest a la meilleure PR-AUC (0,59), mais il n'est pas statistiquement distinguable du KNN corrigé ni du SVM avec 19 patients ; seul le Decision Tree est nettement plus faible. Le choix dépend de l'objectif : RF pour peu de fausses alarmes, KNN corrigé pour ne rien rater."],
@@ -522,7 +545,7 @@ TABLE(["Question probable", "Réponse"], [
     ["Pourquoi le RF échoue sur 230718A_A ?", "Ses crises sont de faible amplitude mais très riches en 3 Hz ; le RF s'appuie sur l'amplitude absolue. J'ai testé une normalisation par enregistrement : elle dégrade les résultats globaux, donc abandonnée. Piste suivante : des features sans amplitude absolue."],
     ["Comment gérez-vous le déséquilibre ?", "Pondération des classes pour DT, RF et SVM, sous-échantillonnage pour le KNN, métriques adaptées (Recall, F1, PR-AUC) et seuil réglable dans l'interface."],
     ["L'interface utilise-t-elle un modèle enregistré ?", "Non : elle entraîne à la demande en leave-one-patient-out et met en cache, avec les mêmes modèles que le script d'évaluation. Pour un usage réel, il faudrait sauvegarder un modèle final."],
-    ["Que fait la page Prévention ?", "Une étude préparatoire : elle montre si les features changent avant le début d'une crise. Le modèle de prévention reste à faire."],
+    ["Que fait la page Prévention ?", "Une étude de faisabilité : on teste si un modèle reconnaît les 30 s avant une crise (contre des fenêtres calmes) sur un enregistrement jamais vu. Résultat : AUC ~0,64, Balanced Accuracy ~0,55 ; mieux que le hasard chez 17 patients sur 19, mais trop faible pour une alerte fiable, et le signal ne grandit pas à l'approche de la crise. On le présente comme une piste, pas comme un système."],
 ], [5, 12])
 
 H1("F. Glossaire et commandes")
@@ -555,6 +578,9 @@ CODE("""
 pip install -r requirements.txt
 python -m src.convert_to_csv         # une seule fois : .mat + Excel -> data_csv/ (vérifie l'égalité exacte)
 python -m src.evaluate               # évaluation de référence -> results/ (environ 25 min)
+python -m src.evaluate --augment     # même chose avec data augmentation (fichiers *_augment)
+python -m tools.eval_stratified      # protocole du sujet : stratifié 80/20 répété (5 graines)
+python -m tools.prevention_study     # étude de faisabilité de la prévention
 streamlit run app.py                 # interface patient par patient (navigation par étapes)
 streamlit run app_questions.py       # version organisée par questions du sujet
 """)

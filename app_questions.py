@@ -89,7 +89,7 @@ if page == PAGES[0]:
 3. *Fenêtres* : 2 s, recouvrement 50 %, classe 1 si ≥ 50 % d'échantillons en crise.
 4. *Features* : 14 temporelles + puissances de bandes (Delta/Theta/Alpha/Beta **+ bande 3 Hz**, signature des pointes-ondes d'absence), puissances relatives, entropie spectrale, fréquence dominante, SEF95. Calculées sur **chaque canal** puis agrégées (moyenne et max sur tous les canaux) → indépendant du nombre de canaux disponibles.
 5. *Évaluation* : split stratifié 80/20 (demandé) **et** split par enregistrement (sans fuite).
-6. *Déséquilibre* : `class_weight="balanced"`, métrique principale **Recall / F1**, pas l'Accuracy.
+6. *Déséquilibre* : `class_weight="balanced"`, métrique principale **Recall / F1**, pas l'Accuracy (on affiche la **Balanced Accuracy**).
 7. *Pré-crise* : la classe `Class3` (0 inter-critique, 1 pré-crise, 2 crise) est disponible pour une classification à trois états.
 """)
     st.graphviz_chart("""digraph { rankdir=LR; node [shape=box, style=rounded];
@@ -339,7 +339,7 @@ elif page == PAGES[6]:
             cols[i].plotly_chart(fig, use_container_width=True)
     st.subheader("Question 13 - Quelle métrique privilégier ?")
     st.markdown("""
-- **Accuracy trompeuse** : avec ~96 % de fenêtres sans crise, un modèle qui répond toujours « pas de crise » obtient ~96 % d'Accuracy
+- **Accuracy trompeuse** (d'où la **Balanced Accuracy** = moyenne du Recall de chaque classe, 0,5 pour « jamais de crise ») : avec ~96 % de fenêtres sans crise, un modèle qui répond toujours « pas de crise » obtient ~96 % d'Accuracy
   avec **Recall = 0** : il ne détecte aucune crise.
 - **Precision** = parmi les alarmes, part de vraies crises (coût des fausses alarmes).
 - **Recall** = part des crises réellement détectées. **Un faux négatif (crise manquée) est le plus grave** en pratique clinique.
@@ -466,7 +466,7 @@ else:
                 ps[te_i] = m.predict_proba(ds.iloc[te_i][feats])[:, 1]
             mt = metrics(ds.Class, (ps > thr).astype(int))
             res.append({"Variante": o, "Nb features": len(feats), **mt})
-        st.dataframe(pd.DataFrame(res).set_index("Variante").style.format({k: "{:.3f}" for k in ["Accuracy", "Precision", "Recall", "F1-score"]}), use_container_width=True)
+        st.dataframe(pd.DataFrame(res).set_index("Variante").style.format({k: "{:.3f}" for k in ["Balanced Accuracy", "Precision", "Recall", "F1-score"]}), use_container_width=True)
     st.markdown("""
 **Autres pistes** (non implémentées ici) : changer taille de fenêtre/recouvrement (barre latérale, le dataset est reconstruit),
 ajouter des features inter-canaux (cohérence, synchronie : les absences sont *généralisées*), contexte temporel

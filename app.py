@@ -65,8 +65,8 @@ def get_ranking(win_s, overlap, pre_s):
 
 
 @st.cache_data(show_spinner="Prédiction leave-one-patient-out (22 entraînements)... ~1-2 min")
-def get_loo(win_s, overlap, pre_s, feats, model, rf_leaf=2):
-    return loo_proba(get_dataset(win_s, overlap, pre_s), list(feats), model, rf_min_leaf=rf_leaf)
+def get_loo(win_s, overlap, pre_s, feats, model, rf_leaf=2, augment=False):
+    return loo_proba(get_dataset(win_s, overlap, pre_s), list(feats), model, rf_min_leaf=rf_leaf, augment=augment)
 
 
 @st.cache_data
@@ -128,7 +128,7 @@ DEFAULTS = {
     "pre_lo": 0.5, "pre_hi": 40.0, "pre_scale": True,
     "win_K": 12, "win_thr": 0.5, "win_model": "Random Forest",
     "feat_K": 15, "feat_corr": 0.9,
-    "cls_fs": "Meilleures features", "cls_K": 15, "cls_split": "Par patient (réaliste)", "cls_bal": True,
+    "cls_fs": "Meilleures features", "cls_K": 15, "cls_split": "Par patient (réaliste)", "cls_bal": True, "cls_aug": False, "cls_thr": False,
     "m_pp": "Random Forest", "th_pp": 0.5,
     "det_K": 15, "det_model": "Random Forest", "det_th": 0.5, "det_smooth": 3, "det_mind": 2.0, "det_iou": 0.3,
     "prev_range": (-60, 20),
@@ -184,7 +184,7 @@ def best_feats(k, thr):
 def loo(feats, model):
     """Probabilités leave-one-patient-out ; mémorise la configuration pour l'état de l'analyse."""
     st.session_state.setdefault("loo_cfgs", set()).add((model, len(feats)))
-    return get_loo(WIN, OVL, PRE, tuple(feats), model, RF_LEAF)
+    return get_loo(WIN, OVL, PRE, tuple(feats), model, RF_LEAF, bool(st.session_state.get("cls_aug", False)))
 
 
 def fig_layout(fig, height, **kw):
@@ -256,11 +256,11 @@ def page_overview():
     ui.section("Résultats principaux disponibles", "Évaluation de référence en validation « un patient laissé de côté » (`python -m src.evaluate`).")
     if res_f.exists() and det_f.exists():
         m_, d_ = pd.read_csv(res_f, index_col=0), pd.read_csv(det_f, index_col=0)
-        out = pd.DataFrame({"PR-AUC": m_["PR-AUC"], "Recall": m_["Recall"], "Précision": m_["Précision"], "F1": m_["F1"],
+        out = pd.DataFrame({"PR-AUC": m_["PR-AUC"], **({"Balanced Accuracy": m_["Balanced Accuracy"]} if "Balanced Accuracy" in m_ else {}), "Recall": m_["Recall"], "Précision": m_["Précision"], "F1": m_["F1"],
                             "Crises retrouvées (strict)": d_["Crises retrouvées (strict)"], "Fausses alarmes / h": d_["Fausses alarmes / h"]}).round(3)
         st.dataframe(out, use_container_width=True)
         st.caption("Seuil de décision 0,5 sur la probabilité de chaque modèle. Appariement strict des intervalles (recouvrement ≥ 0,3). "
-                   "Random Forest, KNN et SVM ne sont pas statistiquement distinguables avec 19 patients.")
+                   "Les meilleurs modèles ne sont pas statistiquement distinguables avec 19 patients.")
     else:
         ui.callout("neutral", "Aucun résultat de référence trouvé dans `results/`. Lancez `python -m src.evaluate` pour les produire.")
 
@@ -536,6 +536,10 @@ def page_classification():
         split = {"Par patient (réaliste)": "patient", "Stratifié 80/20 (sujet)": "stratifie"}[
             c[2].radio("Séparation 80/20", ["Par patient (réaliste)", "Stratifié 80/20 (sujet)"], key="cls_split")]
         bal = c[3].checkbox("Pondérer les classes", key="cls_bal")
+        aug = c[3].checkbox("Data augmentation des crises", key="cls_aug",
+                            help="Ajoute 2x plus de fenêtres de crise synthétiques (réelles + bruit gaussien) à l'entraînement uniquement.")
+        learn_thr = c[3].checkbox("Seuil appris sur le train", key="cls_thr",
+                                  help="Au lieu de 0,5, le seuil de décision de chaque modèle maximise le F1 sur 20 % du train (jamais sur le test).")
         feats = best_feats(K, 0.9) if fs_mode == "Meilleures features" else F_ALL
         st.caption(f"{len(feats)} features utilisées. Le split par patient évite la fuite entre fenêtres chevauchantes ; le stratifié est celui du sujet (optimiste). "
                    "Avec « Pondérer les classes », le KNN (k = 31) voit 5 non-crises pour 1 crise à l'entraînement, car il n'a pas de pondération.")
@@ -543,12 +547,14 @@ def page_classification():
     if run:
         tr, te = split_data(ds, feats, mode=split)
         with st.spinner("Entraînement..."):
-            res, cms, _, _ = evaluate_all(get_models(bal, rf_min_leaf=RF_LEAF), tr[feats], tr.Class, te[feats], te.Class)
-        st.session_state["cls"] = (res, cms, len(tr), len(te), int(te.Class.sum()))
+            res, cms, _, _ = evaluate_all(get_models(bal, rf_min_leaf=RF_LEAF, augment=aug), tr[feats], tr.Class, te[feats], te.Class,
+                                          learn_thr=learn_thr, groups=tr.rec_id if split == "patient" else None)
+        st.session_state["cls"] = (res, cms, len(tr), len(te), int(te.Class.sum()), res.attrs["seuils"])
     ui.section("Résultats sur l'ensemble de test")
     if "cls" in st.session_state:
-        res, cms, ntr, nte, npos = st.session_state["cls"]
-        st.write(f"Train : {ntr:,} fenêtres - Test : {nte:,} fenêtres ({npos} crises)")
+        res, cms, ntr, nte, npos, thrs = st.session_state["cls"]
+        st.write(f"Train : {ntr:,} fenêtres - Test : {nte:,} fenêtres ({npos} crises) - seuils de décision : "
+                 + ", ".join(f"{k} {v:.2f}" for k, v in thrs.items()))
         st.dataframe(res.style.format("{:.3f}").highlight_max(color=T.SAGE_LIGHT), use_container_width=True)
         cols = st.columns(4)
         for i, (nm, cm) in enumerate(cms.items()):
@@ -559,8 +565,26 @@ def page_classification():
     else:
         ui.callout("neutral", "Aucun entraînement lancé dans cette session. Réglez les paramètres ci-dessus puis lancez l'entraînement.")
     ui.callout("info", "**Métrique à privilégier : Recall** (une crise manquée est le pire cas), contrôlé par le **F1-score**. "
-                       "L'Accuracy est trompeuse : ~96 % des fenêtres sont sans crise, donc « jamais de crise » ferait déjà 96 %.",
+                       "On affiche la **Balanced Accuracy** (moyenne du Recall des deux classes) plutôt que l'Accuracy, trompeuse ici : "
+                       "~96 % des fenêtres sont sans crise, donc « jamais de crise » ferait 96 % d'Accuracy mais seulement 50 % de Balanced Accuracy.",
                title="Comment lire les métriques")
+
+    ref = {k: ROOT / "results" / f for k, f in [("sa", "summary_models.csv"), ("sb", "summary_models_augment.csv"), ("st", "stratified_80_20.csv")]}
+    if all(f.exists() for f in ref.values()):
+        ui.section("Protocole du sujet contre protocole réaliste", "Résultats de référence : F1 et Balanced Accuracy des 4 modèles, sans puis avec les deux améliorations.")
+        a, b = (pd.read_csv(ref[k], index_col=0) for k in ("sa", "sb"))
+        t = pd.read_csv(ref["st"])
+        t = t.set_index(["Augmentation", "Modèle", "Seuil"])
+        rows = {}
+        for m in MODELS[:4]:
+            rows[m] = {"F1 stratifié : de base": t.loc[("non", m, "seuil 0,5"), "F1 moy"], "F1 stratifié : augm. + seuil appris": t.loc[("oui", m, "seuil appris"), "F1 moy"],
+                       "F1 par patient : de base": a.loc[m, "F1"], "F1 par patient : augm. + seuil appris": b.loc[m, "F1 (seuil appris)"],
+                       "Bal. Acc. stratifié : de base": t.loc[("non", m, "seuil 0,5"), "Balanced Accuracy moy"],
+                       "Bal. Acc. stratifié : augm. + seuil appris": t.loc[("oui", m, "seuil appris"), "Balanced Accuracy moy"],
+                       "Bal. Acc. par patient : de base": a.loc[m, "Balanced Accuracy"], "Bal. Acc. par patient : augm. + seuil appris": b.loc[m, "Balanced Accuracy (seuil appris)"]}
+        st.dataframe(pd.DataFrame(rows).T.style.format("{:.3f}"), use_container_width=True)
+        st.caption("De base = seuil 0,5 sans data augmentation. Le stratifié 80/20 (5 découpages, moyenne) est celui du sujet : il est plus optimiste, car des fenêtres voisines quasi identiques "
+                   "se retrouvent dans le train et le test. Le « par patient » (un enregistrement laissé de côté) est l'estimation réaliste. Avec augmentation et seuil appris, les quatre modèles se rapprochent.")
 
     ui.section("Résultats patient par patient", "Modèle jamais entraîné sur le patient évalué.")
     with ui.panel("Paramètres"):
@@ -654,9 +678,26 @@ def page_detection():
 
 # ============================================================ 6 · Prévention (préparation)
 def page_prevention():
-    ui.callout("warn", "Étape à venir : prédire la crise **avant** son début. Les bases sont déjà prêtes : `Class3` (inter-critique / pré-crise / crise) "
-                       "dans le dataset, et la zone pré-crise réglable dans le panneau latéral. Ci-dessous : les features changent-elles AVANT le début de la crise ? "
-                       "Aucun modèle de prévention n'est proposé à ce stade.", title="Étude préparatoire")
+    ui.callout("warn", "Étude de faisabilité, pas un système de prévention. On teste si un modèle sait reconnaître les fenêtres des 30 s qui précèdent une crise, "
+                       "par rapport aux fenêtres calmes, sur un enregistrement jamais vu. Résultat : **un signal faible existe, mais il est trop faible pour déclencher une alerte fiable**.",
+               title="Étude de faisabilité")
+    pf, lf = ROOT / "results" / "prevention_study.csv", ROOT / "results" / "prevention_lead.csv"
+    if pf.exists() and lf.exists():
+        ui.section("Peut-on reconnaître une pré-crise ?", "Pré-crise (30 s avant le début) contre fenêtres calmes (≥ 60 s avant et ≥ 15 s après une crise), un enregistrement laissé de côté.")
+        pr_, ld_ = pd.read_csv(pf, index_col=0), pd.read_csv(lf, index_col=0)
+        st.dataframe(pr_.style.format({"AUC": "{:.3f}", "PR-AUC": "{:.3f}", "PR-AUC aléatoire": "{:.3f}", "Balanced Accuracy": "{:.3f}", "AUC médiane / patient": "{:.3f}"}),
+                     use_container_width=True)
+        fig = px.bar(ld_.reset_index(), x="Délai avant la crise (s)", y="AUC", color_discrete_sequence=[R["reference"]], title="AUC selon le délai avant la crise")
+        fig.add_hline(y=0.5, line_dash="dash", line_color=T.CORAL, annotation_text="hasard (0,5)")
+        fig.update_yaxes(range=[0.4, 1])
+        c_ = st.columns([3, 2])
+        c_[0].plotly_chart(fig_layout(fig, 320), use_container_width=True)
+        with c_[1]:
+            ui.callout("info", "AUC 0,5 = hasard, 1 = parfait. Ici ~0,64 : mieux que le hasard dans 17 patients sur 19, mais très loin d'un détecteur utilisable "
+                               "(Balanced Accuracy ~0,55). Le signal ne grandit pas à l'approche de la crise, ce qui suggère un état général plutôt qu'un vrai précurseur.",
+                       title="Lecture")
+        st.caption("Produit par `python -m tools.prevention_study`. Pistes pour aller plus loin : plus de patients et de crises, suivi de l'évolution des features sur plusieurs fenêtres "
+                   "consécutives, modèles adaptés à chaque patient, et fréquence cardiaque (ECG) ou autres capteurs.")
     ui.section("Répartition des fenêtres par phase")
     c3 = ds.Class3.value_counts().rename({0: "Inter-critique", 1: "Pré-crise", 2: "Crise"})
     st.write(pd.DataFrame({"Fenêtres": c3}).T)

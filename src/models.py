@@ -8,7 +8,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
+from sklearn.metrics import (balanced_accuracy_score, confusion_matrix, f1_score, precision_recall_curve,
                              precision_score, recall_score)
 from sklearn.model_selection import GroupShuffleSplit, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
@@ -47,13 +47,47 @@ class UnderSampled(BaseEstimator, ClassifierMixin):
         return self.estimator_.predict(np.asarray(X))
 
 
-def build_model(name, balanced=True, seed=42, rf_min_leaf=2, knn_k=31, knn_undersample=5):
+class Augmented(BaseEstimator, ClassifierMixin):
+    """Data augmentation à l'entraînement : sur-échantillonne les fenêtres de crise (classes != 0) en créant
+    `factor` fois plus d'exemples synthétiques = fenêtre de crise réelle + bruit gaussien (jitter), de
+    écart-type `noise` x l'écart-type de chaque feature sur les crises. Appliqué APRÈS la standardisation,
+    uniquement sur le jeu d'entraînement : le test (et le patient laissé de côté) reste intact."""
+
+    def __init__(self, estimator=None, factor=2, noise=0.1, seed=0):
+        self.estimator = estimator
+        self.factor = factor
+        self.noise = noise
+        self.seed = seed
+
+    def fit(self, X, y):
+        X, y = np.asarray(X, dtype=float), np.asarray(y)
+        rng = np.random.default_rng(self.seed)
+        pos = np.where(y != 0)[0]
+        if len(pos) and self.factor > 0:
+            src = rng.choice(pos, int(round(self.factor * len(pos))), replace=True)
+            sd = X[pos].std(axis=0)
+            Xa = X[src] + rng.normal(0.0, 1.0, (len(src), X.shape[1])) * sd * self.noise
+            X, y = np.vstack([X, Xa]), np.concatenate([y, y[src]])
+        self.estimator_ = clone(self.estimator).fit(X, y)
+        self.classes_ = self.estimator_.classes_
+        return self
+
+    def predict_proba(self, X):
+        return self.estimator_.predict_proba(np.asarray(X))
+
+    def predict(self, X):
+        return self.estimator_.predict(np.asarray(X))
+
+
+def build_model(name, balanced=True, seed=42, rf_min_leaf=2, knn_k=31, knn_undersample=5, augment=False,
+                aug_factor=2, aug_noise=0.1):
     """Construit UN modèle (Pipeline StandardScaler + classifieur).
 
     balanced        pondération des classes (DT, RF, SVM) ; sous-échantillonnage pour le KNN
     rf_min_leaf     taille minimale des feuilles du Random Forest (2 par défaut, 5 = feuilles plus larges)
     knn_k           nombre de voisins du KNN (31 : plus stable que 7, voir l'évaluation)
     knn_undersample nb de non-crises gardées par crise à l'entraînement du KNN (None pour désactiver)
+    augment         data augmentation des crises (jitter gaussien), `aug_factor` x `aug_noise` : voir `Augmented`
     """
     cw = "balanced" if balanced else None
     if name == "Decision Tree":
@@ -68,6 +102,8 @@ def build_model(name, balanced=True, seed=42, rf_min_leaf=2, knn_k=31, knn_under
         clf = SVC(kernel="rbf", C=1.0, class_weight=cw, probability=True, random_state=seed)
     else:
         raise ValueError(f"modèle inconnu : {name}")
+    if augment:
+        clf = Augmented(clf, factor=aug_factor, noise=aug_noise, seed=seed)
     return make_pipeline(StandardScaler(), clf)
 
 
@@ -92,20 +128,51 @@ def split_data(df, feats, target="Class", mode="stratifie", test_size=0.2, seed=
 
 def metrics(y, p, avg="binary"):
     kw = dict(zero_division=0) if avg == "binary" else dict(zero_division=0, average=avg)
-    return {"Accuracy": accuracy_score(y, p), "Precision": precision_score(y, p, **kw),
+    return {"Balanced Accuracy": balanced_accuracy_score(y, p), "Precision": precision_score(y, p, **kw),
             "Recall": recall_score(y, p, **kw), "F1-score": f1_score(y, p, **kw)}
 
 
-def evaluate_all(models, Xtr, ytr, Xte, yte):
-    rows, cms, preds, fitted = [], {}, {}, {}
+THR_MIN, THR_MAX = 0.1, 0.9      # garde-fou : un arbre seul donne des probabilités ~0/1, le seuil optimal y est instable
+
+
+def learn_threshold(y, s):
+    """Seuil de probabilité qui maximise le F1 sur (y, s), borné à [0,1 ; 0,9]. À APPRENDRE sur des données qui ne sont pas le test."""
+    pr, rc, th = precision_recall_curve(y, s)
+    return float(np.clip(th[np.argmax((2 * pr * rc / (pr + rc + 1e-12))[:-1])], THR_MIN, THR_MAX))
+
+
+def _inner_split(y, groups, seed):
+    """Sous-ensemble de validation (20 %) du train, stratifié ; par enregistrement si `groups` est fourni."""
+    idx = np.arange(len(y))
+    if groups is None:
+        return train_test_split(idx, test_size=0.2, stratify=y, random_state=seed)
+    for s in range(seed, seed + 50):
+        a, b = next(GroupShuffleSplit(1, test_size=0.2, random_state=s).split(idx, groups=groups))
+        if y[b].sum() > 20 and y[a].sum() > 20:
+            break
+    return a, b
+
+
+def evaluate_all(models, Xtr, ytr, Xte, yte, learn_thr=False, groups=None, seed=42):
+    """Entraîne et évalue chaque modèle. Avec `learn_thr`, le seuil de décision est appris sur 20 % du train (jamais sur le test)
+    puis appliqué au test ; `res.attrs["seuils"]` contient le seuil de chaque modèle."""
+    rows, cms, preds, fitted, thrs = [], {}, {}, {}, {}
+    Xtr, ytr = np.asarray(Xtr), np.asarray(ytr)
     for name, m in models.items():
-        m.fit(Xtr, ytr)
-        p = m.predict(Xte)
+        thr = 0.5
+        if learn_thr:
+            iin, iva = _inner_split(ytr, None if groups is None else np.asarray(groups), seed)
+            m.fit(Xtr[iin], ytr[iin])
+            thr = learn_threshold(ytr[iva], m.predict_proba(Xtr[iva])[:, 1])
+        else:
+            m.fit(Xtr, ytr)
+        p = (m.predict_proba(Xte)[:, 1] > thr).astype(int)
         rows.append({"Modèle": name, **metrics(yte, p)})
         cms[name] = confusion_matrix(yte, p, labels=[0, 1])
-        preds[name] = p
-        fitted[name] = m
-    return pd.DataFrame(rows).set_index("Modèle"), cms, preds, fitted
+        preds[name], fitted[name], thrs[name] = p, m, thr
+    res = pd.DataFrame(rows).set_index("Modèle")
+    res.attrs["seuils"] = thrs
+    return res, cms, preds, fitted
 
 
 def loo_proba(ds, feats, model="Random Forest", seed=42, n_jobs=4, **kw):
