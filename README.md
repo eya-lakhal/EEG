@@ -32,6 +32,7 @@ Métrique principale affichée : **Balanced Accuracy** (moyenne du Recall des de
 | Dossier / fichier | Rôle |
 |---|---|
 | `app.py` | Application Streamlit (7 pages, navigation par étapes) |
+| `static/` | Image de fond (papier EEG, `bg_eeg.png`) générée par `python tools/make_background.py`, servie par Streamlit |
 | `ui/` | Identité visuelle : `theme.py` (palette, CSS, graphiques), `components.py` (composants) ; thème de base dans `.streamlit/config.toml` |
 | `src/` | Tous les calculs : `convert_to_csv`, `data_loader`, `preprocessing`, `features`, `dataset`, `selection`, `models` (fabrique unique `build_model`), `detection` (appariement strict), `evaluate` |
 | `results/` | Résultats de référence (scores leave-one-patient-out, résumés, réglages) lus par l'application |

@@ -1,11 +1,11 @@
-# Thème de base (clair, palette "électrophysiologie") ; le détail typographique et les composants
+# Thème de base (clair : fond rose bébé, texte noir et bleu marine, usage clinique) ; le détail typographique et les composants
 # sont dans ui/theme.py. Les couleurs ci-dessous sont les mêmes que ui/theme.py (une seule palette).
 [theme]
 base = "light"
-primaryColor = "#14505C"
-backgroundColor = "#F7F3EA"
-secondaryBackgroundColor = "#EDE7D8"
-textColor = "#222B32"
+primaryColor = "#1D4E96"
+backgroundColor = "#FBE4EA"
+secondaryBackgroundColor = "#F6D2DD"
+textColor = "#14171C"
 font = "sans serif"
 
 [client]
@@ -13,3 +13,7 @@ toolbarMode = "minimal"
 
 [browser]
 gatherUsageStats = false
+
+[server]
+# sert le dossier static/ (image de fond static/bg_eeg.png, générée par tools/make_background.py)
+enableStaticServing = true

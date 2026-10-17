@@ -1,48 +1,49 @@
 """Identité visuelle de l'application : palette, typographie, CSS et gabarit Plotly.
 
 Une seule source pour les couleurs : tout le reste (CSS, graphiques, composants) en dérive.
-Inspiration : tracés EEG sur papier, équipement hospitalier, publications de neurosciences.
+Inspiration : tracés EEG sur papier quadrillé rose, équipement hospitalier, publications de neurosciences.
+Palette : fond rose bébé, texte noir et bleu marine (sobre, lisible, usage clinique).
 """
 import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
 # ----------------------------------------------------------------------------- palette
-IVORY = "#F7F3EA"          # fond de page (ivoire chaud)
-SURFACE = "#FBF8F1"        # surfaces claires (panneaux, zone de tracé)
-IVORY_DEEP = "#EDE7D8"     # barre latérale
-LINE = "#DDD5C2"           # bordures
-LINE_SOFT = "#E8E2D2"      # grilles des graphiques
+IVORY = "#FBE4EA"          # fond de page (rose bébé)
+SURFACE = "#FFF6F8"        # surfaces claires (panneaux, zone de tracé) : rose très pâle, presque blanc
+IVORY_DEEP = "#F6D2DD"     # barre latérale
+LINE = "#E9B9C7"           # bordures
+LINE_SOFT = "#F2D0DA"      # grilles des graphiques
 
-INK = "#222B32"            # texte principal (ardoise très sombre)
-SLATE = "#58636D"          # texte secondaire (contraste 5,5:1 sur l'ivoire, 5,0:1 sur la barre latérale)
-SLATE_LIGHT = "#8A949D"
+INK = "#14171C"            # texte principal (noir)
+SLATE = "#34476B"          # texte secondaire (bleu ardoise ; contraste > 7:1 sur le rose)
+SLATE_LIGHT = "#6B7C9A"
 
-PETROL_900 = "#0C2F38"     # bleu pétrole profond : structure, titres
-PETROL = "#14505C"         # action principale, navigation active
-PETROL_500 = "#2A7A86"
-PETROL_200 = "#B9D3D6"
+PETROL_900 = "#0A2447"     # bleu marine profond : structure, titres (nom historique « petrol », la teinte est maintenant bleue)
+PETROL = "#1D4E96"         # bleu médical : action principale, navigation active
+PETROL_500 = "#3A74C0"
+PETROL_200 = "#C9DBF2"
 
 SAGE = "#7FA593"           # vert sauge : éléments secondaires, rassurants
-SAGE_DARK = "#4E7566"
-SAGE_LIGHT = "#DCE7DF"
+SAGE_DARK = "#3F6B5B"
+SAGE_LIGHT = "#DCEBE3"
 
-COPPER = "#B07A3A"         # cuivre : filets, repères, fonds (jamais pour du petit texte : contraste 3,3:1)
-COPPER_TEXT = "#8A5A22"    # cuivre foncé pour le texte (5,3:1 sur l'ivoire)
-COPPER_LIGHT = "#EAD4B2"
+COPPER = "#B5457A"         # rose soutenu : filets, repères, fonds (nom historique « copper »)
+COPPER_TEXT = "#8E2E5E"    # rose foncé pour le texte
+COPPER_LIGHT = "#F2C3D5"
 
-CORAL = "#C65D4E"          # corail atténué : événements critiques (crises)
-CORAL_DARK = "#8C3529"     # corail foncé pour le texte et les badges (5,7:1 sur corail clair)
-CORAL_LIGHT = "#F3D5CF"
+CORAL = "#C0392B"          # rouge clinique : événements critiques (crises), distinct du fond rose
+CORAL_DARK = "#8A1F16"     # rouge foncé pour le texte et les badges
+CORAL_LIGHT = "#F8CFCB"
 
 AMBER = "#D8A23E"          # ambre : phase pré-critique
-AMBER_LIGHT = "#F3E2B8"
+AMBER_LIGHT = "#F6E3B4"
 PLUM = "#86699A"           # prune : phase post-critique (réservée, non annotée dans les données)
-INTERICTAL = "#8FA6B0"     # gris-bleu : phase inter-critique (fond)
+INTERICTAL = "#8FA6C0"     # gris-bleu : phase inter-critique (fond)
 
 # Rôles sémantiques dans les graphiques (une couleur = une signification, partout)
 ROLE = {
-    "signal": "#33424C",       # tracé EEG
+    "signal": "#1B2433",       # tracé EEG
     "raw": "#9AA3AA",          # signal brut
     "filtered": PETROL_500,    # signal filtré
     "normalized": SAGE_DARK,   # signal normalisé
@@ -71,8 +72,8 @@ FONT_MONO = "'IBM Plex Mono',Consolas,'Courier New',monospace"
 SERIES = [PETROL_500, SAGE_DARK, "#8A7F6A", SLATE, PETROL_900, COPPER]
 
 # échelles de couleur perceptuellement ordonnées (luminance monotone)
-SEQ = ["#0E2A33", "#1B4F5C", "#3C8088", "#79B2AA", "#C4DBC2", "#F6F0DC"]
-DIV = [[0.0, "#14505C"], [0.25, "#79B2AA"], [0.5, "#F7F3EA"], [0.75, "#E3A196"], [1.0, "#A44538"]]
+SEQ = ["#0A2447", "#1D4E96", "#3A74C0", "#8DB4E2", "#CFE0F4", "#FFF1F5"]
+DIV = [[0.0, "#1D4E96"], [0.25, "#8DB4E2"], [0.5, "#FFF6F8"], [0.75, "#E79A9A"], [1.0, "#A83232"]]
 
 
 # ----------------------------------------------------------------------------- gabarit Plotly
@@ -118,7 +119,13 @@ label, button, input, textarea, select, [data-baseweb="select"] *, [data-baseweb
 [data-testid="stMetricLabel"], [data-testid="stCaptionContainer"], [data-testid="stExpander"] summary {{
   font-family: var(--font-ui) !important;
 }}
-.stApp {{ background: var(--ivory); color: var(--ink); font-size: 15px; line-height: 1.55; }}
+.stApp {{
+  background-color: var(--ivory);
+  /* papier EEG (static/bg_eeg.png) sous une couche rose à 82 % : l'image n'est visible qu'à environ 18 % */
+  background-image: linear-gradient(rgba(251,228,234,.82), rgba(251,228,234,.82)), url("/app/static/bg_eeg.png");
+  background-size: cover; background-position: center; background-attachment: fixed; background-repeat: no-repeat;
+  color: var(--ink); font-size: 15px; line-height: 1.55;
+}}
 .stApp [data-testid="stMarkdownContainer"] p {{ font-size: 15px; line-height: 1.6; }}
 code, [data-testid="stMarkdownContainer"] code {{
   font-family: var(--font-mono) !important; font-size: .86em; background: var(--ivory-deep); color: var(--petrol-900);
@@ -162,7 +169,7 @@ footer {{ visibility: hidden; }}
   border-bottom: 3px solid transparent !important; padding: .72rem .8rem .6rem .8rem; min-height: 0;
   color: var(--slate) !important; font-size: 13.5px; font-weight: 500;
 }}
-.element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button:hover {{ color: var(--petrol-900) !important; background: rgba(20,80,92,.06) !important; }}
+.element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button:hover {{ color: var(--petrol-900) !important; background: rgba(29,78,150,.08) !important; }}
 .element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button[kind="primary"],
 .element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button[data-testid="baseButton-primary"] {{
   color: var(--petrol-900) !important; font-weight: 600; border-bottom: 3px solid var(--copper) !important; background: transparent !important;
@@ -194,21 +201,21 @@ footer {{ visibility: hidden; }}
 .panel-title {{ font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color: var(--slate); margin:.2rem 0 .1rem 0; }}
 
 /* ---------- messages ---------- */
-.callout {{ border-left: 3px solid var(--petrol-500); background: rgba(20,80,92,.06); padding:.7rem 1rem; margin:.7rem 0 1rem 0; border-radius: 0 4px 4px 0; font-size:.92rem; }}
+.callout {{ border-left: 3px solid var(--petrol-500); background: rgba(29,78,150,.07); padding:.7rem 1rem; margin:.7rem 0 1rem 0; border-radius: 0 4px 4px 0; font-size:.92rem; }}
 .callout .ct {{ font-weight:600; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; margin-bottom:.15rem; color: var(--petrol); }}
 .callout p {{ margin:0; }}
-.callout-warn {{ border-left-color: var(--copper); background: rgba(176,122,58,.10); }}
+.callout-warn {{ border-left-color: var(--copper); background: rgba(181,69,122,.10); }}
 .callout-warn .ct {{ color: var(--copper-text); }}
-.callout-critical {{ border-left-color: var(--coral); background: rgba(198,93,78,.09); }}
+.callout-critical {{ border-left-color: var(--coral); background: rgba(192,57,43,.09); }}
 .callout-critical .ct {{ color: var(--coral-dark); }}
 .callout-ok {{ border-left-color: var(--sage-dark); background: rgba(127,165,147,.14); }}
 .callout-ok .ct {{ color: var(--sage-dark); }}
-.callout-neutral {{ border-left-color: var(--slate-light); background: rgba(102,114,125,.08); }}
+.callout-neutral {{ border-left-color: var(--slate-light); background: rgba(52,71,107,.07); }}
 .callout-neutral .ct {{ color: var(--slate); }}
 
 /* ---------- étiquettes, légendes, badges ---------- */
 .chips {{ display:flex; flex-wrap:wrap; gap:.4rem; margin:.4rem 0 .6rem 0; }}
-.chip {{ font-family: var(--font-mono); font-size:.8rem; background: var(--sage-light); color: var(--petrol-900); padding:.18rem .55rem; border-radius:3px; border:1px solid rgba(78,117,102,.28); }}
+.chip {{ font-family: var(--font-mono); font-size:.8rem; background: var(--sage-light); color: var(--petrol-900); padding:.18rem .55rem; border-radius:3px; border:1px solid rgba(63,107,91,.30); }}
 .legend {{ display:flex; flex-wrap:wrap; gap:.4rem 1.3rem; font-size:.8rem; color: var(--slate); margin:.25rem 0 .6rem 0; }}
 .lg {{ display:inline-flex; align-items:center; gap:.45rem; }}
 .lg i {{ display:inline-block; width:1.5rem; height:.7rem; border-radius:2px; }}
@@ -217,7 +224,7 @@ footer {{ visibility: hidden; }}
 .badge {{ display:inline-block; font-size:.74rem; letter-spacing:.07em; text-transform:uppercase; font-weight:600; padding:.22rem .65rem; border-radius:3px; border:1px solid; }}
 .badge-ok {{ color: var(--petrol-900); background: var(--petrol-200); border-color: var(--petrol-500); }}
 .badge-neutral {{ color: var(--slate); background: var(--ivory-deep); border-color: var(--line); }}
-.badge-warn {{ color: #7A4F1C; background: var(--amber-light); border-color: var(--amber); }}
+.badge-warn {{ color: #6B4510; background: var(--amber-light); border-color: var(--amber); }}
 .badge-critical {{ color: var(--coral-dark); background: var(--coral-light); border-color: var(--coral); }}
 .verdict {{ display:flex; flex-direction:column; align-items:flex-start; gap:.3rem; }}
 .verdict small {{ color: var(--slate); font-size:.8rem; }}
@@ -252,10 +259,10 @@ footer {{ visibility: hidden; }}
 /* ---------- boutons ---------- */
 .stButton > button, .stDownloadButton > button {{ border-radius: 4px; font-weight:500; font-size:.9rem; padding:.42rem 1rem; transition: background .15s, border-color .15s; }}
 .stButton > button[kind="secondary"], .stButton > button[data-testid="baseButton-secondary"] {{
-  background: var(--surface); border: 1px solid #C9C1AC; color: var(--petrol-900);
+  background: var(--surface); border: 1px solid var(--line); color: var(--petrol-900);
 }}
 .stButton > button[kind="secondary"]:hover, .stButton > button[data-testid="baseButton-secondary"]:hover {{ border-color: var(--petrol); color: var(--petrol); background: #fff; }}
-.stButton > button[kind="primary"], .stButton > button[data-testid="baseButton-primary"] {{ background: var(--petrol); border: 1px solid var(--petrol); color: var(--ivory); }}
+.stButton > button[kind="primary"], .stButton > button[data-testid="baseButton-primary"] {{ background: var(--petrol); border: 1px solid var(--petrol); color: #fff; }}
 .stButton > button[kind="primary"]:hover, .stButton > button[data-testid="baseButton-primary"]:hover {{ background: var(--petrol-900); border-color: var(--petrol-900); color:#fff; }}
 .stButton > button:focus-visible {{ outline: 2px solid var(--copper); outline-offset: 2px; }}
 

@@ -10,8 +10,8 @@ DISCLAIMER = ("Outil de recherche. Les prédictions du modèle sont des estimati
 
 # Logo : un motif pointe-onde (la signature d'une crise d'absence) tracé en une ligne
 LOGO_SVG = ('<svg width="40" height="28" viewBox="0 0 40 28" fill="none" aria-hidden="true">'
-            '<rect x="0" y="0" width="40" height="28" rx="6" fill="#14505C"/>'
-            '<polyline points="4,15 11,15 14,5 17,24 20,15 26,9 30,15 36,15" stroke="#F7F3EA" stroke-width="2" '
+            '<rect x="0" y="0" width="40" height="28" rx="6" fill="#1D4E96"/>'
+            '<polyline points="4,15 11,15 14,5 17,24 20,15 26,9 30,15 36,15" stroke="#FFFFFF" stroke-width="2" '
             'stroke-linejoin="round" stroke-linecap="round" fill="none"/></svg>')
 
 
