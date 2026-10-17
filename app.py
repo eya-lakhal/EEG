@@ -549,12 +549,14 @@ def page_classification():
         with st.spinner("Entraînement..."):
             res, cms, _, _ = evaluate_all(get_models(bal, rf_min_leaf=RF_LEAF, augment=aug), tr[feats], tr.Class, te[feats], te.Class,
                                           learn_thr=learn_thr, groups=tr.rec_id if split == "patient" else None)
-        st.session_state["cls"] = (res, cms, len(tr), len(te), int(te.Class.sum()), res.attrs["seuils"])
+        st.session_state["cls"] = (res, cms, len(tr), len(te), int(te.Class.sum()), res.attrs["seuils"], int(tr.Class.sum()))
     ui.section("Résultats sur l'ensemble de test")
     if "cls" in st.session_state:
-        res, cms, ntr, nte, npos, thrs = st.session_state["cls"]
-        st.write(f"Train : {ntr:,} fenêtres - Test : {nte:,} fenêtres ({npos} crises) - seuils de décision : "
-                 + ", ".join(f"{k} {v:.2f}" for k, v in thrs.items()))
+        res, cms, ntr, nte, npos, thrs, npos_tr = st.session_state["cls"]
+        m_ = st.columns(2)
+        m_[0].metric("Train", f"{ntr:,} fenêtres".replace(",", " "), f"dont {npos_tr:,} en crise ({100 * npos_tr / ntr:.1f} %)".replace(",", " "), delta_color="off")
+        m_[1].metric("Test", f"{nte:,} fenêtres".replace(",", " "), f"dont {npos:,} en crise ({100 * npos / nte:.1f} %)".replace(",", " "), delta_color="off")
+        st.caption("Seuils de décision : " + ", ".join(f"{k} {v:.2f}" for k, v in thrs.items()))
         st.dataframe(res.style.format("{:.3f}").highlight_max(color=T.SAGE_LIGHT), use_container_width=True)
         cols = st.columns(4)
         for i, (nm, cm) in enumerate(cms.items()):
