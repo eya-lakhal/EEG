@@ -694,8 +694,8 @@ def page_prevention():
         pr_, ld_ = pd.read_csv(pf, index_col=0), pd.read_csv(lf, index_col=0)
         st.dataframe(pr_.style.format({"AUC": "{:.3f}", "PR-AUC": "{:.3f}", "PR-AUC aléatoire": "{:.3f}", "Balanced Accuracy": "{:.3f}", "AUC médiane / patient": "{:.3f}"}),
                      use_container_width=True)
-        fig = px.bar(ld_.reset_index(), x="Délai avant la crise (s)", y="AUC", color_discrete_sequence=[R["reference"]], title="AUC selon le délai avant la crise")
-        fig.add_hline(y=0.5, line_dash="dash", line_color=T.CORAL, annotation_text="hasard (0,5)")
+        fig = px.bar(ld_.reset_index(), x="Délai avant la crise (s)", y="AUC", color_discrete_sequence=[T.PETROL_500], title="AUC selon le délai avant la crise")
+        fig.add_hline(y=0.5, line_dash="dash", line_color=T.SLATE, annotation_text="hasard (0,5)")
         fig.update_yaxes(range=[0.4, 1])
         c_ = st.columns([3, 2])
         c_[0].plotly_chart(fig_layout(fig, 320), use_container_width=True)

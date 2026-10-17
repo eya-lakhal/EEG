@@ -1,11 +1,11 @@
-# Thème de base (clair : fond rose bébé, texte noir et bleu marine, usage clinique) ; le détail typographique et les composants
+# Thème de base (clair : ivoire froid, bleu pétrole, turquoise EEG) ; le détail typographique et les composants
 # sont dans ui/theme.py. Les couleurs ci-dessous sont les mêmes que ui/theme.py (une seule palette).
 [theme]
 base = "light"
-primaryColor = "#1D4E96"
-backgroundColor = "#FBE4EA"
-secondaryBackgroundColor = "#F6D2DD"
-textColor = "#14171C"
+primaryColor = "#2A8C8C"
+backgroundColor = "#F5F7F5"
+secondaryBackgroundColor = "#EBF0EE"
+textColor = "#1C2B33"
 font = "sans serif"
 
 [client]

@@ -1,50 +1,52 @@
 """Identité visuelle de l'application : palette, typographie, CSS et gabarit Plotly.
 
 Une seule source pour les couleurs : tout le reste (CSS, graphiques, composants) en dérive.
-Inspiration : cerveau en camaïeu bleu marine sur fond rose, équipement hospitalier, publications de neurosciences.
-Palette : fond rose bébé, texte noir et bleu marine (sobre, lisible, usage clinique).
+Inspiration : cerveau en camaïeu bleu pétrole sur fond ivoire, équipement hospitalier, publications de neurosciences.
+Palette : ivoire froid, bleu pétrole, turquoise EEG, sauge ; bordeaux réservé aux crises, ambre aux avertissements.
 """
 import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
 # ----------------------------------------------------------------------------- palette
-IVORY = "#FBE4EA"          # fond de page (rose bébé)
-SURFACE = "#FFF6F8"        # surfaces claires (panneaux, zone de tracé) : rose très pâle, presque blanc
-IVORY_DEEP = "#F6D2DD"     # barre latérale
-LINE = "#E9B9C7"           # bordures
-LINE_SOFT = "#F2D0DA"      # grilles des graphiques
+IVORY = "#F5F7F5"          # fond de page : ivoire froid
+SURFACE = "#FFFFFF"        # cartes, champs, panneaux, zone de tracé : blanc clinique
+IVORY_DEEP = "#EBF0EE"     # barre latérale : ivoire froid légèrement teinté
+LINE = "#D3DCDA"           # bordures fines
+LINE_SOFT = "#E4EBE9"      # grilles des graphiques (très discrètes)
 
-INK = "#14171C"            # texte principal (noir)
-SLATE = "#34476B"          # texte secondaire (bleu ardoise ; contraste > 7:1 sur le rose)
-SLATE_LIGHT = "#6B7C9A"
+INK = "#1C2B33"            # texte principal (bleu-noir)
+SLATE = "#526572"          # gris ardoise : texte secondaire, descriptions, métadonnées (contraste 5,3:1 sur l'ivoire)
+SLATE_LIGHT = "#7C8D98"
 
-PETROL_900 = "#0A2447"     # bleu marine profond : structure, titres (nom historique « petrol », la teinte est maintenant bleue)
-PETROL = "#1D4E96"         # bleu médical : action principale, navigation active
-PETROL_500 = "#3A74C0"
-PETROL_200 = "#C9DBF2"
+# Bleu pétrole et turquoise : la structure et les courbes (les noms PETROL_* sont historiques)
+PETROL_900 = "#173B4D"     # bleu pétrole profond : titres, navigation active, éléments structurants
+PETROL = "#173B4D"         # action principale (boutons pleins)
+PETROL_500 = "#2A8C8C"     # turquoise EEG : courbes, graphiques, éléments interactifs
+PETROL_200 = "#CFE4E3"
 
-SAGE = "#7FA593"           # vert sauge : éléments secondaires, rassurants
-SAGE_DARK = "#3F6B5B"
-SAGE_LIGHT = "#DCEBE3"
+SAGE = "#8BAFA3"           # vert sauge médical : accents secondaires, indicateurs neutres
+SAGE_DARK = "#4F7A6C"      # sauge foncé : texte et tracés (la sauge claire est trop pâle pour du texte)
+SAGE_LIGHT = "#E2EDE9"
 
-COPPER = "#B5457A"         # rose soutenu : filets, repères, fonds (nom historique « copper »)
-COPPER_TEXT = "#8E2E5E"    # rose foncé pour le texte
-COPPER_LIGHT = "#F2C3D5"
+COPPER = "#2A8C8C"         # filets, repères, onglet actif (nom historique ; turquoise)
+COPPER_TEXT = "#1F6B6B"    # turquoise foncé pour le texte (contraste 5,9:1 sur l'ivoire)
+COPPER_LIGHT = "#BFDDDB"
 
-CORAL = "#C0392B"          # rouge clinique : événements critiques (crises), distinct du fond rose
-CORAL_DARK = "#8A1F16"     # rouge foncé pour le texte et les badges
-CORAL_LIGHT = "#F8CFCB"
+CORAL = "#A64050"          # bordeaux médical : crises et alertes importantes UNIQUEMENT (nom historique)
+CORAL_DARK = "#7E2A38"     # bordeaux foncé pour le texte et les badges
+CORAL_LIGHT = "#F1D6DA"
 
-AMBER = "#D8A23E"          # ambre : phase pré-critique
-AMBER_LIGHT = "#F6E3B4"
-PLUM = "#86699A"           # prune : phase post-critique (réservée, non annotée dans les données)
-INTERICTAL = "#8FA6C0"     # gris-bleu : phase inter-critique (fond)
+AMBER = "#D9A441"          # ambre doux : phase pré-critique, avertissements
+AMBER_DARK = "#7A5712"     # ambre foncé pour le texte (contraste 5,6:1)
+AMBER_LIGHT = "#F4E7C6"
+PLUM = "#7B6A8E"           # phase post-critique (réservée, non annotée dans les données)
+INTERICTAL = "#8FA6B0"     # gris-bleu : phase inter-critique (fond)
 
 # Rôles sémantiques dans les graphiques (une couleur = une signification, partout)
 ROLE = {
-    "signal": "#1B2433",       # tracé EEG
-    "raw": "#9AA3AA",          # signal brut
+    "signal": "#1C2B33",       # tracé EEG
+    "raw": "#8C99A1",          # signal brut
     "filtered": PETROL_500,    # signal filtré
     "normalized": SAGE_DARK,   # signal normalisé
     "reference": CORAL,        # annotation de référence (experts)
@@ -69,11 +71,11 @@ FONT_SERIF = "'Newsreader',Georgia,'Times New Roman',serif"
 FONT_MONO = "'IBM Plex Mono',Consolas,'Courier New',monospace"
 
 # Couleurs de séries génériques (courbes de features) : aucune ne reprend une couleur de phase ou d'annotation
-SERIES = [PETROL_500, SAGE_DARK, "#8A7F6A", SLATE, PETROL_900, COPPER]
+SERIES = [PETROL_500, SAGE_DARK, "#8B8672", SLATE, PETROL_900, "#5E8FA6"]
 
 # échelles de couleur perceptuellement ordonnées (luminance monotone)
-SEQ = ["#0A2447", "#1D4E96", "#3A74C0", "#8DB4E2", "#CFE0F4", "#FFF1F5"]
-DIV = [[0.0, "#1D4E96"], [0.25, "#8DB4E2"], [0.5, "#FFF6F8"], [0.75, "#E79A9A"], [1.0, "#A83232"]]
+SEQ = ["#0F2A38", "#173B4D", "#2A7C8C", "#7FBDB8", "#CFE6E1", "#F5F7F5"]
+DIV = [[0.0, "#173B4D"], [0.25, "#7FBDB8"], [0.5, "#F5F7F5"], [0.75, "#D9A0A8"], [1.0, "#A64050"]]
 
 
 # ----------------------------------------------------------------------------- gabarit Plotly
@@ -109,7 +111,7 @@ CSS = f"""
   --sage:{SAGE}; --sage-dark:{SAGE_DARK}; --sage-light:{SAGE_LIGHT};
   --copper:{COPPER}; --copper-text:{COPPER_TEXT}; --copper-light:{COPPER_LIGHT};
   --coral:{CORAL}; --coral-dark:{CORAL_DARK}; --coral-light:{CORAL_LIGHT};
-  --amber:{AMBER}; --amber-light:{AMBER_LIGHT};
+  --amber:{AMBER}; --amber-dark:{AMBER_DARK}; --amber-light:{AMBER_LIGHT};
   --font-ui:{FONT_UI}; --font-serif:{FONT_SERIF}; --font-mono:{FONT_MONO};
 }}
 
@@ -122,9 +124,9 @@ label, button, input, textarea, select, [data-baseweb="select"] *, [data-baseweb
 .stApp {{
   background-color: var(--ivory);
   /* Couche d'arrière-plan (jamais le conteneur : textes et graphiques restent 100 % opaques) :
-     1) un voile rose qui règle la visibilité du cerveau (0.74 = cerveau visible à ~26 % ; monter la valeur pour le faire pâlir),
-     2) l'image static/bg_brain.png (cerveau en camaïeu bleu marine, bords déjà fondus dans le rose). */
-  background-image: linear-gradient(rgba(251,228,234,.74), rgba(251,228,234,.74)), url("/app/static/bg_brain.png");
+     1) un voile ivoire qui règle la visibilité du cerveau (0.84 = voile à 84 %, cerveau visible à ~16 % ; monter la valeur pour le faire pâlir),
+     2) l'image static/bg_brain.png (cerveau en camaïeu bleu pétrole, bords déjà fondus dans l'ivoire). */
+  background-image: linear-gradient(rgba(245,247,245,.84), rgba(245,247,245,.84)), url("/app/static/bg_brain.png");
   background-repeat: no-repeat, no-repeat;
   background-size: cover, min(max(84vw, 760px), 1500px) auto;
   background-position: center, right 2vw center;
@@ -174,7 +176,7 @@ footer {{ visibility: hidden; }}
   border-bottom: 3px solid transparent !important; padding: .72rem .8rem .6rem .8rem; min-height: 0;
   color: var(--slate) !important; font-size: 13.5px; font-weight: 500;
 }}
-.element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button:hover {{ color: var(--petrol-900) !important; background: rgba(29,78,150,.08) !important; }}
+.element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button:hover {{ color: var(--petrol-900) !important; background: rgba(23,59,77,.06) !important; }}
 .element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button[kind="primary"],
 .element-container:has(.stepper-anchor) + [data-testid="stHorizontalBlock"] button[data-testid="baseButton-primary"] {{
   color: var(--petrol-900) !important; font-weight: 600; border-bottom: 3px solid var(--copper) !important; background: transparent !important;
@@ -201,26 +203,26 @@ footer {{ visibility: hidden; }}
 /* ---------- panneau de paramètres ---------- */
 .element-container:has(.panel-anchor) {{ display:none; }}
 .element-container:has(.panel-anchor) + [data-testid="stVerticalBlockBorderWrapper"] {{
-  background: rgba(255,246,248,.93); border: 1px solid var(--line) !important; border-radius: 6px; padding: .35rem .6rem .15rem .6rem;
+  background: rgba(255,255,255,.94); border: 1px solid var(--line) !important; border-radius: 6px; padding: .35rem .6rem .15rem .6rem;
 }}
 .panel-title {{ font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color: var(--slate); margin:.2rem 0 .1rem 0; }}
 
 /* ---------- messages ---------- */
-.callout {{ border-left: 3px solid var(--petrol-500); background: rgba(29,78,150,.07); padding:.7rem 1rem; margin:.7rem 0 1rem 0; border-radius: 0 4px 4px 0; font-size:.92rem; }}
+.callout {{ border-left: 3px solid var(--petrol-500); background: rgba(23,59,77,.05); padding:.7rem 1rem; margin:.7rem 0 1rem 0; border-radius: 0 4px 4px 0; font-size:.92rem; }}
 .callout .ct {{ font-weight:600; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; margin-bottom:.15rem; color: var(--petrol); }}
 .callout p {{ margin:0; }}
-.callout-warn {{ border-left-color: var(--copper); background: rgba(181,69,122,.10); }}
-.callout-warn .ct {{ color: var(--copper-text); }}
-.callout-critical {{ border-left-color: var(--coral); background: rgba(192,57,43,.09); }}
+.callout-warn {{ border-left-color: var(--amber); background: rgba(217,164,65,.12); }}
+.callout-warn .ct {{ color: var(--amber-dark); }}
+.callout-critical {{ border-left-color: var(--coral); background: rgba(166,64,80,.08); }}
 .callout-critical .ct {{ color: var(--coral-dark); }}
 .callout-ok {{ border-left-color: var(--sage-dark); background: rgba(127,165,147,.14); }}
 .callout-ok .ct {{ color: var(--sage-dark); }}
-.callout-neutral {{ border-left-color: var(--slate-light); background: rgba(52,71,107,.07); }}
+.callout-neutral {{ border-left-color: var(--slate-light); background: rgba(82,101,114,.07); }}
 .callout-neutral .ct {{ color: var(--slate); }}
 
 /* ---------- étiquettes, légendes, badges ---------- */
 .chips {{ display:flex; flex-wrap:wrap; gap:.4rem; margin:.4rem 0 .6rem 0; }}
-.chip {{ font-family: var(--font-mono); font-size:.8rem; background: var(--sage-light); color: var(--petrol-900); padding:.18rem .55rem; border-radius:3px; border:1px solid rgba(63,107,91,.30); }}
+.chip {{ font-family: var(--font-mono); font-size:.8rem; background: var(--sage-light); color: var(--petrol-900); padding:.18rem .55rem; border-radius:3px; border:1px solid rgba(79,122,108,.30); }}
 .legend {{ display:flex; flex-wrap:wrap; gap:.4rem 1.3rem; font-size:.8rem; color: var(--slate); margin:.25rem 0 .6rem 0; }}
 .lg {{ display:inline-flex; align-items:center; gap:.45rem; }}
 .lg i {{ display:inline-block; width:1.5rem; height:.7rem; border-radius:2px; }}
@@ -229,13 +231,13 @@ footer {{ visibility: hidden; }}
 .badge {{ display:inline-block; font-size:.74rem; letter-spacing:.07em; text-transform:uppercase; font-weight:600; padding:.22rem .65rem; border-radius:3px; border:1px solid; }}
 .badge-ok {{ color: var(--petrol-900); background: var(--petrol-200); border-color: var(--petrol-500); }}
 .badge-neutral {{ color: var(--slate); background: var(--ivory-deep); border-color: var(--line); }}
-.badge-warn {{ color: #6B4510; background: var(--amber-light); border-color: var(--amber); }}
+.badge-warn {{ color: var(--amber-dark); background: var(--amber-light); border-color: var(--amber); }}
 .badge-critical {{ color: var(--coral-dark); background: var(--coral-light); border-color: var(--coral); }}
 .verdict {{ display:flex; flex-direction:column; align-items:flex-start; gap:.3rem; }}
 .verdict small {{ color: var(--slate); font-size:.8rem; }}
 
 /* ---------- état de l'analyse / étapes ---------- */
-.flow {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:0; border:1px solid var(--line); border-radius:6px; background: rgba(255,246,248,.93); overflow:hidden; }}
+.flow {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:0; border:1px solid var(--line); border-radius:6px; background: rgba(255,255,255,.94); overflow:hidden; }}
 .flow > div {{ padding:.8rem .9rem; border-right:1px solid var(--line); font-size:.85rem; }}
 .flow > div:last-child {{ border-right:0; }}
 .flow .n {{ font-family: var(--font-mono); font-size:.72rem; color: var(--copper-text); }}
@@ -281,7 +283,7 @@ footer {{ visibility: hidden; }}
 
 /* ---------- tableaux, expanders ---------- */
 [data-testid="stDataFrame"] {{ border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }}
-[data-testid="stExpander"] {{ border: 1px solid var(--line); border-radius: 6px; background: rgba(255,246,248,.93); }}
+[data-testid="stExpander"] {{ border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.94); }}
 [data-testid="stExpander"] summary {{ font-weight:500; color: var(--petrol-900); }}
 hr {{ border-color: var(--line); }}
 
