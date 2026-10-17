@@ -1,46 +1,35 @@
-"""Génère static/bg_eeg.png : fond d'application en « papier EEG » (quadrillage rose, tracés bleus, une salve de pointes-ondes à 3 Hz).
+"""Prépare l'image de fond de l'application : static/brain_source.jpg -> static/bg_brain.png
 
     python tools/make_background.py
 
-L'image est servie par Streamlit (`enableStaticServing`, voir .streamlit/config.toml) et posée en fond de page par ui/theme.py,
-sous une couche rose semi-transparente : elle reste discrète et ne gêne jamais la lecture.
+L'image d'origine (cerveau lumineux, violet et cyan sur fond sombre) est trop saturée pour un outil médical. On la convertit en
+camaïeu : les zones lumineuses (les sillons, le contour du cerveau) deviennent un bleu marine, le fond sombre devient le rose de la page.
+Les bords sont fondus dans le rose (masque elliptique) pour qu'il n'y ait ni cadre ni effet de collage.
+Le résultat est posé en fond par ui/theme.py, sous un voile rose supplémentaire : il reste reconnaissable mais discret.
 """
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image, ImageFilter
 
-PINK, GRID, GRID_BOLD, BLUE = "#FBE4EA", "#F3CAD6", "#EDB4C5", "#1D4E96"
-W, H, DPI = 19.2, 10.8, 100
-rng = np.random.default_rng(7)
+PINK = np.array([251, 228, 234], float)     # fond de page
+NAVY = np.array([22, 48, 95], float)        # encre des sillons
+WIDTH = 1800                                  # l'original fait 800 px : on agrandit en lissant (le voile masque le grain)
 
-fig = plt.figure(figsize=(W, H), dpi=DPI, facecolor=PINK)
-ax = fig.add_axes([0, 0, 1, 1])
-ax.set_xlim(0, W)
-ax.set_ylim(0, H)
-ax.axis("off")
+root = Path(__file__).resolve().parent.parent / "static"
+im = Image.open(root / "brain_source.jpg").convert("RGB")
+h = round(im.height * WIDTH / im.width)
+im = im.resize((WIDTH, h), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.6))
 
-# quadrillage du papier (petits carreaux tous les 0,2, gros carreaux tous les 1,0)
-for x in np.arange(0, W + 0.01, 0.2):
-    ax.plot([x, x], [0, H], color=GRID_BOLD if round(x * 5) % 5 == 0 else GRID, lw=0.9 if round(x * 5) % 5 == 0 else 0.5, zorder=1)
-for y in np.arange(0, H + 0.01, 0.2):
-    ax.plot([0, W], [y, y], color=GRID_BOLD if round(y * 5) % 5 == 0 else GRID, lw=0.9 if round(y * 5) % 5 == 0 else 0.5, zorder=1)
+lum = np.asarray(im.convert("L"), float) / 255.0
+smooth = lambda e0, e1, x: np.clip((x - e0) / (e1 - e0), 0, 1) ** 2 * (3 - 2 * np.clip((x - e0) / (e1 - e0), 0, 1))
+ink = smooth(0.34, 0.95, lum)                  # seules les zones lumineuses laissent de l'encre
 
-# 10 canaux EEG : bruit de fond + salve de pointes-ondes à 3 Hz au milieu
-n_ch, x = 10, np.linspace(0, W, 3200)
-burst = np.exp(-((x - 10.2) / 3.0) ** 8)                    # enveloppe de la crise
-for i in range(n_ch):
-    y0 = H * (0.93 - i * 0.092)
-    bg = 0.10 * np.sin(x * 7.5 + i) + 0.07 * np.sin(x * 15.3 + 2 * i) + 0.05 * rng.standard_normal(x.size).cumsum() / 40
-    ph = (x * 3.0 + 0.04 * i) % 1.0                           # 3 cycles par unité de temps
-    sw = np.where(ph < 0.10, 1.0 - ph * 6, -0.55 * np.sin(np.pi * (ph - 0.10) / 0.90) ** 2)   # pointe puis onde lente
-    y = y0 + bg + burst * sw * (0.34 + 0.05 * np.sin(i))
-    ax.plot(x, y, color=BLUE, lw=1.5, alpha=0.9, solid_capstyle="round", zorder=3)
+yy, xx = np.mgrid[0:h, 0:WIDTH]
+r = np.sqrt(((xx - WIDTH / 2) / (WIDTH / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2)
+mask = 1 - smooth(0.62, 1.0, r)                # plein au centre, fondu vers les bords
 
-out = Path(__file__).resolve().parent.parent / "static" / "bg_eeg.png"
-out.parent.mkdir(exist_ok=True)
-fig.savefig(out, dpi=DPI, facecolor=PINK)
-print("écrit", out, out.stat().st_size // 1024, "Ko")
+a = (ink * mask)[..., None]
+out = PINK * (1 - a) + NAVY * a
+Image.fromarray(out.astype(np.uint8)).save(root / "bg_brain.png", optimize=True)
+print("écrit", root / "bg_brain.png", (root / "bg_brain.png").stat().st_size // 1024, "Ko")

@@ -15,5 +15,5 @@ toolbarMode = "minimal"
 gatherUsageStats = false
 
 [server]
-# sert le dossier static/ (image de fond static/bg_eeg.png, générée par tools/make_background.py)
+# sert le dossier static/ (image de fond static/bg_brain.png, générée par tools/make_background.py)
 enableStaticServing = true

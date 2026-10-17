@@ -1,7 +1,7 @@
 """Identité visuelle de l'application : palette, typographie, CSS et gabarit Plotly.
 
 Une seule source pour les couleurs : tout le reste (CSS, graphiques, composants) en dérive.
-Inspiration : tracés EEG sur papier quadrillé rose, équipement hospitalier, publications de neurosciences.
+Inspiration : cerveau en camaïeu bleu marine sur fond rose, équipement hospitalier, publications de neurosciences.
 Palette : fond rose bébé, texte noir et bleu marine (sobre, lisible, usage clinique).
 """
 import plotly.graph_objects as go
@@ -121,9 +121,14 @@ label, button, input, textarea, select, [data-baseweb="select"] *, [data-baseweb
 }}
 .stApp {{
   background-color: var(--ivory);
-  /* papier EEG (static/bg_eeg.png) sous une couche rose à 82 % : l'image n'est visible qu'à environ 18 % */
-  background-image: linear-gradient(rgba(251,228,234,.82), rgba(251,228,234,.82)), url("/app/static/bg_eeg.png");
-  background-size: cover; background-position: center; background-attachment: fixed; background-repeat: no-repeat;
+  /* Couche d'arrière-plan (jamais le conteneur : textes et graphiques restent 100 % opaques) :
+     1) un voile rose qui règle la visibilité du cerveau (0.74 = cerveau visible à ~26 % ; monter la valeur pour le faire pâlir),
+     2) l'image static/bg_brain.png (cerveau en camaïeu bleu marine, bords déjà fondus dans le rose). */
+  background-image: linear-gradient(rgba(251,228,234,.74), rgba(251,228,234,.74)), url("/app/static/bg_brain.png");
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, min(max(84vw, 760px), 1500px) auto;
+  background-position: center, right 2vw center;
+  background-attachment: scroll, fixed;
   color: var(--ink); font-size: 15px; line-height: 1.55;
 }}
 .stApp [data-testid="stMarkdownContainer"] p {{ font-size: 15px; line-height: 1.6; }}
@@ -196,7 +201,7 @@ footer {{ visibility: hidden; }}
 /* ---------- panneau de paramètres ---------- */
 .element-container:has(.panel-anchor) {{ display:none; }}
 .element-container:has(.panel-anchor) + [data-testid="stVerticalBlockBorderWrapper"] {{
-  background: var(--surface); border: 1px solid var(--line) !important; border-radius: 6px; padding: .35rem .6rem .15rem .6rem;
+  background: rgba(255,246,248,.93); border: 1px solid var(--line) !important; border-radius: 6px; padding: .35rem .6rem .15rem .6rem;
 }}
 .panel-title {{ font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color: var(--slate); margin:.2rem 0 .1rem 0; }}
 
@@ -230,7 +235,7 @@ footer {{ visibility: hidden; }}
 .verdict small {{ color: var(--slate); font-size:.8rem; }}
 
 /* ---------- état de l'analyse / étapes ---------- */
-.flow {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:0; border:1px solid var(--line); border-radius:6px; background: var(--surface); overflow:hidden; }}
+.flow {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:0; border:1px solid var(--line); border-radius:6px; background: rgba(255,246,248,.93); overflow:hidden; }}
 .flow > div {{ padding:.8rem .9rem; border-right:1px solid var(--line); font-size:.85rem; }}
 .flow > div:last-child {{ border-right:0; }}
 .flow .n {{ font-family: var(--font-mono); font-size:.72rem; color: var(--copper-text); }}
@@ -275,8 +280,8 @@ footer {{ visibility: hidden; }}
 [data-testid="stCaptionContainer"] {{ color: var(--slate); font-size:.82rem; }}
 
 /* ---------- tableaux, expanders ---------- */
-[data-testid="stDataFrame"] {{ border: 1px solid var(--line); border-radius: 4px; }}
-[data-testid="stExpander"] {{ border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }}
+[data-testid="stDataFrame"] {{ border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }}
+[data-testid="stExpander"] {{ border: 1px solid var(--line); border-radius: 6px; background: rgba(255,246,248,.93); }}
 [data-testid="stExpander"] summary {{ font-weight:500; color: var(--petrol-900); }}
 hr {{ border-color: var(--line); }}
 
